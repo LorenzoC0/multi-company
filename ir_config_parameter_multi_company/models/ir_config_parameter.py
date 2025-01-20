@@ -11,7 +11,19 @@ class IrConfigMultiCompany(models.Model):
 
     @api.model
     def _get_param(self, key):
-        company_id = self.env.company.id
+        if not self.env.context.get("allowed_company_ids") and self.env.uid:
+            # We should do this if env is not ready yet or when it fails to get the
+            # current user. Specifically when installing modules that are trying to
+            # add new fields in res_users.
+            query = """
+                SELECT company_id FROM res_users
+                WHERE id = %s
+            """
+            self.env.cr.execute(query, (self.env.uid,))
+            company_id = self.env.cr.fetchone()[0]
+        else:
+            company_id = self.env.company.id
+
         if self.env.context.get("force_config_parameter_company"):
             company_id = self.env.context["force_config_parameter_company"].id
         if company_id:
